@@ -889,7 +889,7 @@ static void methodizeClass(Class cls)
 #endif
 }
 
-
+#pragma mark remethodizeClass -- 分类的加载
 /***********************************************************************
 * remethodizeClass
 * Attach outstanding categories to an existing class.
@@ -903,7 +903,7 @@ static void remethodizeClass(Class cls)
     bool isMeta;
 
     runtimeLock.assertLocked();
-
+    // 判断当前类是否是元类对象
     isMeta = cls->isMetaClass();
 
     // Re-methodizing: check for more categories
