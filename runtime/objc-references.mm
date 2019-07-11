@@ -271,15 +271,20 @@ struct ReleaseValue {
 void _object_set_associative_reference(id object, void *key, id value, uintptr_t policy) {
     // retain the new value (if any) outside the lock.
     ObjcAssociation old_association(0, nil);
+    // 先根据策略方法对要关联的值进行处理 -- 即发送copy或者retain消息,将 value 和 policy 封装成ObjcAssociation的数据结构
     id new_value = value ? acquireValue(value, policy) : nil;
     {
+        // 关联对象管理类。C++实现的一个类
         AssociationsManager manager;
+        // 获取其管理维护的一个HashMap ,可以理解为一个字典，是一个全局容器
         AssociationsHashMap &associations(manager.associations());
+        // AssociationsHashMap的key ---> value = ObjectAssociationMap
         disguised_ptr_t disguised_object = DISGUISE(object);
         if (new_value) {
             // break any existing association.
+            // 根据对象指针查找对应的一个ObjectAssociationMap结构中的map
             AssociationsHashMap::iterator i = associations.find(disguised_object);
-            if (i != associations.end()) {
+            if (i != associations.end()) {// 已经存在，即给这个对象设置过关联对象值
                 // secondary table exists
                 ObjectAssociationMap *refs = i->second;
                 ObjectAssociationMap::iterator j = refs->find(key);
@@ -289,14 +294,14 @@ void _object_set_associative_reference(id object, void *key, id value, uintptr_t
                 } else {
                     (*refs)[key] = ObjcAssociation(policy, new_value);
                 }
-            } else {
+            } else {// 首次添加关联对象值 -- 需要重新创建 ObjectAssociationMap
                 // create the new association (first time).
                 ObjectAssociationMap *refs = new ObjectAssociationMap;
                 associations[disguised_object] = refs;
                 (*refs)[key] = ObjcAssociation(policy, new_value);
                 object->setHasAssociatedObjects();
             }
-        } else {
+        } else {// 传递的是nil
             // setting the association to nil breaks the association.
             AssociationsHashMap::iterator i = associations.find(disguised_object);
             if (i !=  associations.end()) {

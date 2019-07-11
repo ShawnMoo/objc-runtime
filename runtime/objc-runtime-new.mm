@@ -763,11 +763,14 @@ static void
 attachCategories(Class cls, category_list *cats, bool flush_caches)
 {
     if (!cats) return;
+    // 这里是debug的打印
     if (PrintReplacedMethods) printReplacements(cls, cats);
 
     bool isMeta = cls->isMetaClass();
 
     // fixme rearrange to remove these intermediate allocations
+    // 二维数组
+    // [[method_t, method_t, method_t], [method_t, method_t, method_t], [method_t, method_t, method_t...]]
     method_list_t **mlists = (method_list_t **)
         malloc(cats->count * sizeof(*mlists));
     property_list_t **proplists = (property_list_t **)
@@ -779,32 +782,41 @@ attachCategories(Class cls, category_list *cats, bool flush_caches)
     int mcount = 0;
     int propcount = 0;
     int protocount = 0;
+    // 宿主类分类的总数
     int i = cats->count;
     bool fromBundle = NO;
-    while (i--) {
+    while (i--) {//这里是倒序遍历，最先访问最后编译的分类
+        // 获取一个分类
         auto& entry = cats->list[i];
-
+        // 获取该分类的方法列表
         method_list_t *mlist = entry.cat->methodsForMeta(isMeta);
         if (mlist) {
+            // 最后编译的分类最先添加到分类数组中去
             mlists[mcount++] = mlist;
             fromBundle |= entry.hi->isBundle();
         }
-
+        // 属性列表添加规则，同方法列表的添加规则一样
         property_list_t *proplist = 
             entry.cat->propertiesForMeta(isMeta, entry.hi);
         if (proplist) {
             proplists[propcount++] = proplist;
         }
-
+        // 协议列表的添加规则，同方法列表的添加规则一致
         protocol_list_t *protolist = entry.cat->protocols;
         if (protolist) {
             protolists[protocount++] = protolist;
         }
     }
-
+    // 获取宿主类中的rw信息,其中包括宿主类的方法列表信息
     auto rw = cls->data();
-
+    // 主要是针对分类中有关于内存管理相关a方法情况下的一些特殊处理
     prepareMethodLists(cls, mlists, mcount, NO, fromBundle);
+    
+    /**
+     rw: 代表类
+     methods: 代表类的方法列表
+     attachLists: 方法的含义就是将含有mcount个元素的mlists拼接到rw的methods 上
+     */
     rw->methods.attachLists(mlists, mcount);
     free(mlists);
     if (flush_caches  &&  mcount > 0) flushCaches(cls);

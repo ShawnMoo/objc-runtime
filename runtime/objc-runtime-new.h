@@ -716,18 +716,50 @@ class list_array_tt {
             return &list;
         }
     }
+    
+    /**
+     addedLists: 传递过来的二位数组
+     [[method_t, method_t, method_t, method_t, ...], [method_t, method_t, method_t, method_t, ...], [method_t, method_t, method_t, method_t, ...]]
+     ------------------ --------------------- ---------------
+     
+     分类A中的方法列表(A_list), 分类B中的方法列表(B_list), 分类C中的方法列表(C_list)
+     addedCount: 新添加方法个数 比如3
+     */
 
     void attachLists(List* const * addedLists, uint32_t addedCount) {
+        // 判空
         if (addedCount == 0) return;
 
         if (hasArray()) {
             // many lists -> many lists
+            // 列表中原有元素的总数 例如oldCount = 2
             uint32_t oldCount = array()->count;
+            // 拼接之后的元素总数
             uint32_t newCount = oldCount + addedCount;
+            // 根据新总数重新分配内存
             setArray((array_t *)realloc(array(), array_t::byteSize(newCount)));
+            // 重新设置元素总数
             array()->count = newCount;
-            memmove(array()->lists + addedCount, array()->lists, 
+            // 内存移动
+            /**
+             [[], [], [], ...  [原有的第一个元素], [原有的第二个元素]]
+             */
+            memmove(array()->lists + addedCount, array()->lists,
                     oldCount * sizeof(array()->lists[0]));
+            // 内存拷贝  --  将 addedLists 中的元素拷贝到 lists 中去
+            /**
+             [
+             A ----> [addedLists 中的第一个元素],
+             B ----> [addedLists 中的第二个元素],
+             C ----> [addedLists 中的第三个元素],
+             
+             [原有的第一个元素],
+             [原有的第二个元素]
+             
+             ]
+             
+             ⚠️注意⚠️: 这也就是分类方法会"覆盖"宿主类的方法的原因   其实宿主类的方法依然存在,只是在方法查找的时候,是在方法列表中从前开始查找，一旦找到就会停止继续查找，所以会被"覆盖"
+             */
             memcpy(array()->lists, addedLists, 
                    addedCount * sizeof(array()->lists[0]));
         }
