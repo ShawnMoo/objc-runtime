@@ -309,14 +309,15 @@ static weak_entry_t *
 weak_entry_for_referent(weak_table_t *weak_table, objc_object *referent)
 {
     assert(referent);
-
+// 从弱引用表中找到其对应的弱引用结构体数组
     weak_entry_t *weak_entries = weak_table->weak_entries;
 
     if (!weak_entries) return nil;
-
+// 通过源对象的指针地址进行hash算法的计算，找到这个对象在弱引用表中的对应索引位置
     size_t begin = hash_pointer(referent) & weak_table->mask;
     size_t index = begin;
     size_t hash_displacement = 0;
+    // while  hash 冲突算法
     while (weak_table->weak_entries[index].referent != referent) {
         index = (index+1) & weak_table->mask;
         if (index == begin) bad_weak_table(weak_table->weak_entries);
@@ -383,14 +384,15 @@ weak_unregister_no_lock(weak_table_t *weak_table, id referent_id,
  * Registers a new (object, weak pointer) pair. Creates a new weak
  * object entry if it does not exist.
  * 
- * @param weak_table The global weak table.
- * @param referent The object pointed to by the weak reference.
- * @param referrer The weak pointer address.
+ * @param weak_table The global weak table. 弱引用表
+ * @param referent The object pointed to by the weak reference. 源对象
+ * @param referrer The weak pointer address. 弱引用指针
  */
 id 
-weak_register_no_lock(weak_table_t *weak_table, id referent_id, 
+weak_register_no_lock(weak_table_t *weak_table, id referent_id,
                       id *referrer_id, bool crashIfDeallocating)
 {
+    // 源对象
     objc_object *referent = (objc_object *)referent_id;
     objc_object **referrer = (objc_object **)referrer_id;
 
@@ -426,10 +428,13 @@ weak_register_no_lock(weak_table_t *weak_table, id referent_id,
 
     // now remember it and where it is being stored
     weak_entry_t *entry;
+    // 通过源对象去它所在的 弱引用表中查找对应的弱引用数组(其实是个结构体数组)
     if ((entry = weak_entry_for_referent(weak_table, referent))) {
+        // 如果找到就将弱引用指针添加到这个类似数组中去
         append_referrer(entry, referrer);
     } 
     else {
+        // 如果没找到则创建新的
         weak_entry_t new_entry(referent, referrer);
         weak_grow_maybe(weak_table);
         weak_entry_insert(weak_table, &new_entry);

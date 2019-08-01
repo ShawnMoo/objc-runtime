@@ -287,6 +287,7 @@ storeWeak(id *location, objc_object *newObj)
         oldTable = nil;
     }
     if (haveNew) {
+        // 从SideTables hash表中找到 newObj 相对应的 SideTable -> newTable
         newTable = &SideTables()[newObj];
     } else {
         newTable = nil;
@@ -304,6 +305,7 @@ storeWeak(id *location, objc_object *newObj)
     // weakly-referenced object has an un-+initialized isa.
     if (haveNew  &&  newObj) {
         Class cls = newObj->getIsa();
+        // 判度当前类是否已经初始化
         if (cls != previouslyInitializedClass  &&  
             !((objc_class *)cls)->isInitialized()) 
         {
@@ -329,6 +331,11 @@ storeWeak(id *location, objc_object *newObj)
 
     // Assign new value, if any.
     if (haveNew) {
+        // ⚠️重要⚠️:
+        // newTable->weak_table: 弱引用表
+        // newObj: 被弱引用指向的源对象
+        // location: 弱引用对象地址
+        // crashIfDeallocating: 对象在废弃过程中的 crash 的标识位
         newObj = (objc_object *)
             weak_register_no_lock(&newTable->weak_table, (id)newObj, location, 
                                   crashIfDeallocating);
@@ -336,6 +343,7 @@ storeWeak(id *location, objc_object *newObj)
 
         // Set is-weakly-referenced bit in refcount table.
         if (newObj  &&  !newObj->isTaggedPointer()) {
+            // 设置弱引用标记
             newObj->setWeaklyReferenced_nolock();
         }
 
@@ -400,17 +408,20 @@ objc_storeWeakOrNil(id *location, id newObj)
  * This function IS NOT thread-safe with respect to concurrent 
  * modifications to the weak variable. (Concurrent weak clear is safe.)
  *
- * @param location Address of __weak ptr. 
- * @param newObj Object ptr. 
+ * @param location Address of __weak ptr.   弱引用变量地址
+ * @param newObj Object ptr.  被弱引用对象
  */
 id
 objc_initWeak(id *location, id newObj)
 {
+    // 判空操作
     if (!newObj) {
         *location = nil;
         return nil;
     }
-
+    // DontHaveOld: false
+    // DoHaveNew: true
+    // DoCrashIfDeallocating: true
     return storeWeak<DontHaveOld, DoHaveNew, DoCrashIfDeallocating>
         (location, (objc_object*)newObj);
 }
