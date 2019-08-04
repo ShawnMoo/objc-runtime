@@ -467,9 +467,10 @@ void
 weak_clear_no_lock(weak_table_t *weak_table, id referent_id) 
 {
     objc_object *referent = (objc_object *)referent_id;
-
+// 这里跟创建弱引用表时相似的根据源对象经过hash 算法, 找到这个对象在弱引用表中的对应索引位置，然后取出对应的 weak_entry_t （结构体数组）
     weak_entry_t *entry = weak_entry_for_referent(weak_table, referent);
     if (entry == nil) {
+        // 没有则直接返回
         /// XXX shouldn't happen, but does with mismatched CF/objc
         //printf("XXX no entry for clear deallocating %p\n", referent);
         return;
@@ -489,8 +490,10 @@ weak_clear_no_lock(weak_table_t *weak_table, id referent_id)
     }
     
     for (size_t i = 0; i < count; ++i) {
+        // referrer 即当前对象曾经被修饰过的所有的弱引用指针，
         objc_object **referrer = referrers[i];
         if (referrer) {
+            // 若弱引用指针存在并且是当前对象的弱引用指针，则置为nil
             if (*referrer == referent) {
                 *referrer = nil;
             }
