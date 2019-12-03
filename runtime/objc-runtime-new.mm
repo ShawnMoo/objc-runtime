@@ -765,7 +765,7 @@ attachCategories(Class cls, category_list *cats, bool flush_caches)
     if (!cats) return;
     // 这里是debug的打印
     if (PrintReplacedMethods) printReplacements(cls, cats);
-
+    // 判断是否是元类对象
     bool isMeta = cls->isMetaClass();
 
     // fixme rearrange to remove these intermediate allocations
@@ -817,13 +817,14 @@ attachCategories(Class cls, category_list *cats, bool flush_caches)
      methods: 代表类的方法列表
      attachLists: 方法的含义就是将含有mcount个元素的mlists拼接到rw的methods 上
      */
+    // 所有分类的对象方法,附加到类对象的协议列表中去
     rw->methods.attachLists(mlists, mcount);
     free(mlists);
     if (flush_caches  &&  mcount > 0) flushCaches(cls);
-
+    // 所有分类的属性,附加到类对象的协议列表中去
     rw->properties.attachLists(proplists, propcount);
     free(proplists);
-
+    // 所有分类的协议,附加到类对象的协议列表中去
     rw->protocols.attachLists(protolists, protocount);
     free(protolists);
 }
@@ -924,7 +925,7 @@ static void remethodizeClass(Class cls)
             _objc_inform("CLASS: attaching categories to class '%s' %s", 
                          cls->nameForLogging(), isMeta ? "(meta)" : "");
         }
-        
+        // 8. 分类加载的核心方法--- 将类对象/元类对象 及 cats 传进去
         attachCategories(cls, cats, true /*flush caches*/);        
         free(cats);
     }
@@ -2171,6 +2172,7 @@ map_images(unsigned count, const char * const paths[],
            const struct mach_header * const mhdrs[])
 {
     mutex_locker_t lock(runtimeLock);
+    // 3. map_images_nolock
     return map_images_nolock(count, paths, mhdrs);
 }
 
@@ -2195,6 +2197,7 @@ load_images(const char *path __unused, const struct mach_header *mh)
     // Discover load methods
     {
         mutex_locker_t lock2(runtimeLock);
+        ///  加载类/分类之前的规范化操作
         prepare_load_methods((const headerType *)mh);
     }
 
@@ -2457,6 +2460,7 @@ readProtocol(protocol_t *newproto, Class protocol_class,
 *
 * Locking: runtimeLock acquired by map_images
 **********************************************************************/
+// 5. 读取类信息
 void _read_images(header_info **hList, uint32_t hCount, int totalClasses, int unoptimizedTotalClasses)
 {
     header_info *hi;
@@ -2711,7 +2715,7 @@ void _read_images(header_info **hList, uint32_t hCount, int totalClasses, int un
     }    
 
     ts.log("IMAGE TIMES: realize future classes");
-
+    // 6. 加载分类信息
     // Discover categories. 
     for (EACH_HEADER) {
         category_t **catlist = 
@@ -2744,6 +2748,7 @@ void _read_images(header_info **hList, uint32_t hCount, int totalClasses, int un
             {
                 addUnattachedCategoryForClass(cat, cls, hi);
                 if (cls->isRealized()) {
+                    // 7. 重新方法话类信息 主要方法
                     remethodizeClass(cls);
                     classExists = YES;
                 }
@@ -2759,6 +2764,7 @@ void _read_images(header_info **hList, uint32_t hCount, int totalClasses, int un
             {
                 addUnattachedCategoryForClass(cat, cls->ISA(), hi);
                 if (cls->ISA()->isRealized()) {
+                    // 7.1 这里将元类对象也传进去重新组织
                     remethodizeClass(cls->ISA());
                 }
                 if (PrintConnecting) {
@@ -2860,8 +2866,9 @@ static void schedule_class_load(Class cls)
     if (cls->data()->flags & RW_LOADED) return;
 
     // Ensure superclass-first ordering
+    // 递归调用先将父类添加到loadable_classes中
     schedule_class_load(cls->superclass);
-
+    // 将cls添加到loadable_classes数组的最后面
     add_class_to_loadable_list(cls);
     cls->setInfo(RW_LOADED); 
 }
@@ -2881,12 +2888,15 @@ void prepare_load_methods(const headerType *mhdr)
 
     runtimeLock.assertLocked();
 
-    classref_t *classlist = 
+    classref_t *classlist =
+    // 根据编译顺序拿到类的编译列表 -- 与编译顺序有关，先编译的就在数组的前面
         _getObjc2NonlazyClassList(mhdr, &count);
     for (i = 0; i < count; i++) {
+        // 定制类的加载 -- 这里会对有继承关系的类进行排序，将父类放到前面
         schedule_class_load(remapClass(classlist[i]));
     }
 
+    // 根据编译顺序取出所有的分类列表 -- 参照编译顺序
     category_t **categorylist = _getObjc2NonlazyCategoryList(mhdr, &count);
     for (i = 0; i < count; i++) {
         category_t *cat = categorylist[i];
@@ -4811,8 +4821,9 @@ Method class_getInstanceMethod(Class cls, SEL sel)
     // wants a Method instead of an IMP.
 
 #warning fixme build and search caches
-        
+    // +Initialize 会被调用的入口 --- 因为在initialize 是在第一次给此类发消息的时候调用，所以此处是入口函数
     // Search method lists, try method resolver, etc.
+    // 寻找方法实现
     lookUpImpOrNil(cls, sel, nil, 
                    NO/*initialize*/, NO/*cache*/, YES/*resolver*/);
 
@@ -4898,9 +4909,10 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
     if (!cls->isRealized()) {
         realizeClass(cls);
     }
-
+    // 在寻找方法实现时，如果需要初始化并且当前类还没有初始化则走 { }里的方法
     if (initialize  &&  !cls->isInitialized()) {
         runtimeLock.unlock();
+        // 初始化类
         _class_initialize (_class_getNonMetaClass(cls, inst));
         runtimeLock.lock();
         // If sel == initialize, _class_initialize will send +initialize and 
@@ -4998,6 +5010,7 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
 IMP lookUpImpOrNil(Class cls, SEL sel, id inst, 
                    bool initialize, bool cache, bool resolver)
 {
+    // 消息机制的寻找方法实现或者消息转发
     IMP imp = lookUpImpOrForward(cls, sel, inst, initialize, cache, resolver);
     if (imp == _objc_msgForward_impcache) return nil;
     else return imp;

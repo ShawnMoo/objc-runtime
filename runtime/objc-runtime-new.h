@@ -744,6 +744,8 @@ class list_array_tt {
             /**
              [[], [], [], ...  [原有的第一个元素], [原有的第二个元素]]
              */
+            // void    *memmove(void *__dst, const void *__src, size_t __len);
+            // 内存挪动，相当于将 array()->lists -- 往后挪动addedCount
             memmove(array()->lists + addedCount, array()->lists,
                     oldCount * sizeof(array()->lists[0]));
             // 内存拷贝  --  将 addedLists 中的元素拷贝到 lists 中去
@@ -1410,6 +1412,7 @@ struct swift_class_t : objc_class {
 };
 
 
+// OC 中分类会被编译成的类型
 struct category_t {
     const char *name;
     classref_t cls;

@@ -369,6 +369,7 @@ void waitForInitializeToComplete(Class cls)
 
 void callInitialize(Class cls)
 {
+    // 还是发消息
     ((void(*)(Class, SEL))objc_msgSend)(cls, SEL_initialize);
     asm("");
 }
@@ -491,6 +492,7 @@ void _class_initialize(Class cls)
     // Make sure super is done initializing BEFORE beginning to initialize cls.
     // See note about deadlock above.
     supercls = cls->superclass;
+    // 如果有父类并且父类没有初始化则先初始化父类 -- 递归调用
     if (supercls  &&  !supercls->isInitialized()) {
         _class_initialize(supercls);
     }
@@ -534,6 +536,7 @@ void _class_initialize(Class cls)
         @try
 #endif
         {
+            // 初始化类
             callInitialize(cls);
 
             if (PrintInitializing) {

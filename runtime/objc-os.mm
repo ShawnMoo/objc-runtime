@@ -574,6 +574,7 @@ map_images_nolock(unsigned mhCount, const char * const mhPaths[],
     }
 
     if (hCount > 0) {
+        // 4. _read_images  -- 加载镜像模块
         _read_images(hList, hCount, totalClasses, unoptimizedTotalClasses);
     }
 
@@ -871,7 +872,7 @@ void _objc_atfork_child()
 * Bootstrap initialization. Registers our image notifier with dyld.
 * Called by libSystem BEFORE library initialization time
 **********************************************************************/
-
+/// 1.  运行时的初始化
 void _objc_init(void)
 {
     static bool initialized = false;
@@ -884,7 +885,8 @@ void _objc_init(void)
     static_init();
     lock_init();
     exception_init();
-
+    // 2. map_images ----- 分类的加载顺序
+    // load_images ----- 类的加载
     _dyld_objc_notify_register(&map_images, load_images, unmap_image);
 }
 

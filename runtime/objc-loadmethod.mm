@@ -33,12 +33,12 @@ typedef void(*load_method_t)(id, SEL);
 
 struct loadable_class {
     Class cls;  // may be nil
-    IMP method;
+    IMP method; // 指向类中的+load方法
 };
 
 struct loadable_category {
     Category cat;  // may be nil
-    IMP method;
+    IMP method; // 指向分类中的+load方法
 };
 
 
@@ -116,7 +116,7 @@ void add_category_to_loadable_list(Category cat)
                               loadable_categories_allocated *
                               sizeof(struct loadable_category));
     }
-
+    // 直接将category 添加都数组的最后面，不在考虑是否有父类的情况 -- 所以分类中的+load方法的执行顺序与编译顺序有关，而不再考虑父类的分类方法
     loadable_categories[loadable_categories_used].cat = cat;
     loadable_categories[loadable_categories_used].method = method;
     loadable_categories_used++;
@@ -195,6 +195,7 @@ static void call_class_loads(void)
     // Call all +loads for the detached list.
     for (i = 0; i < used; i++) {
         Class cls = classes[i].cls;
+        // 直接取出类中的 +load 方法
         load_method_t load_method = (load_method_t)classes[i].method;
         if (!cls) continue; 
 
@@ -237,6 +238,7 @@ static bool call_category_loads(void)
     // Call all +loads for the detached list.
     for (i = 0; i < used; i++) {
         Category cat = cats[i].cat;
+        // 直接取出分类中的 +load 方法
         load_method_t load_method = (load_method_t)cats[i].method;
         Class cls;
         if (!cat) continue;
