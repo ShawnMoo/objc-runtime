@@ -316,6 +316,7 @@ void _object_set_associative_reference(id object, void *key, id value, uintptr_t
                 ObjectAssociationMap::iterator j = refs->find(key);
                 if (j != refs->end()) {
                     old_association = j->second;
+                    // 如何key对应的map擦掉，即移除相对应的关联对象
                     refs->erase(j);
                 }
             }

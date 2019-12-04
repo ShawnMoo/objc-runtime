@@ -570,7 +570,7 @@ void objc_setAssociatedObject(id object, const void *key, id value, objc_Associa
     _object_set_associative_reference(object, (void *)key, value, policy);
 }
 
-
+// 移除所有的关联对象
 void objc_removeAssociatedObjects(id object) 
 {
     if (object && object->hasAssociatedObjects()) {
