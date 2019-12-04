@@ -152,8 +152,11 @@ namespace objc_references_support {
     inline disguised_ptr_t DISGUISE(id value) { return ~uintptr_t(value); }
     inline id UNDISGUISE(disguised_ptr_t dptr) { return id(~dptr); }
   
+// 这里的_policy和value 都是外界设置关联对象的时候设置的
     class ObjcAssociation {
+        // 策略
         uintptr_t _policy;
+        // value
         id _value;
     public:
         ObjcAssociation(uintptr_t policy, id value) : _policy(policy), _value(value) {}
@@ -170,12 +173,15 @@ namespace objc_references_support {
     typedef hash_map<disguised_ptr_t, ObjectAssociationMap *> AssociationsHashMap;
 #else
     typedef ObjcAllocator<std::pair<void * const, ObjcAssociation> > ObjectAssociationMapAllocator;
+
+// ObjectAssociationMap —> 存储的是 ObjcAssociation类型的value, void * 为key
     class ObjectAssociationMap : public std::map<void *, ObjcAssociation, ObjectPointerLess, ObjectAssociationMapAllocator> {
     public:
         void *operator new(size_t n) { return ::malloc(n); }
         void operator delete(void *ptr) { ::free(ptr); }
     };
     typedef ObjcAllocator<std::pair<const disguised_ptr_t, ObjectAssociationMap*> > AssociationsHashMapAllocator;
+// AssociationsHashMap -> 存储的值是一个 ObjectAssociationMap类型
     class AssociationsHashMap : public unordered_map<disguised_ptr_t, ObjectAssociationMap *, DisguisedPointerHash, DisguisedPointerEqual, AssociationsHashMapAllocator> {
     public:
         void *operator new(size_t n) { return ::malloc(n); }
@@ -194,6 +200,7 @@ spinlock_t AssociationsManagerLock;
 
 class AssociationsManager {
     // associative references: object pointer -> PtrPtrHashMap.
+    // 管理一个HashMap
     static AssociationsHashMap *_map;
 public:
     AssociationsManager()   { AssociationsManagerLock.lock(); }
