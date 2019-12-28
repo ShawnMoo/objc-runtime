@@ -218,11 +218,13 @@ struct entsize_list_tt {
     };
 };
 
-
+// method_t: 是对方法/函数的的封装
 struct method_t {
-    SEL name;
-    const char *types;
-    MethodListIMP imp;
+    // SEL: 代表方法/函数名，一般也叫做选择器，底层跟char*类似
+    // 不同类中相同名字的方法，所对应的的方法选择器是相同的。因为其实就是一个字符串
+    SEL name;// 函数名
+    const char *types;// 字符串 编码(参数类型，返回值类型)
+    MethodListIMP imp; // 指向函数的指针(函数地址) 函数的具体实现
 
     struct SortBySELAddress :
         public std::binary_function<const method_t&,
@@ -549,21 +551,22 @@ struct locstamped_category_list_t {
 static_assert(FAST_IS_SWIFT_LEGACY == 1, "resistance is futile");
 static_assert(FAST_IS_SWIFT_STABLE == 2, "resistance is futile");
 
-
+// 不可修改
 struct class_ro_t {
     uint32_t flags;
     uint32_t instanceStart;
-    uint32_t instanceSize;
+    uint32_t instanceSize;// instance对象占用的内存空间
 #ifdef __LP64__
     uint32_t reserved;
 #endif
 
     const uint8_t * ivarLayout;
     
-    const char * name;
-    method_list_t * baseMethodList;
-    protocol_list_t * baseProtocols;
-    const ivar_list_t * ivars;
+    const char * name;// 类名
+    // baseXXXList包含了类的初始内容
+    method_list_t * baseMethodList;// 方法列表(一维数组 - 只读)
+    protocol_list_t * baseProtocols;// 协议列表(一维数组 - 只读)
+    const ivar_list_t * ivars;// 成员变量列表(一维数组 - 只读)
 
     const uint8_t * weakIvarLayout;
     property_list_t *baseProperties;
@@ -861,12 +864,12 @@ struct class_rw_t {
     // Be warned that Symbolication knows the layout of this structure.
     uint32_t flags;
     uint32_t version;
-
-    const class_ro_t *ro;
-
-    method_array_t methods;
-    property_array_t properties;
-    protocol_array_t protocols;
+    
+    const class_ro_t *ro; // 只读信息
+    
+    method_array_t methods; // 方法列表(二维数组 - 可读写) -- 包含源类的方法列表跟分类中的方法列表
+    property_array_t properties;// 属性列表(二维数组 - 可读写)
+    protocol_array_t protocols;// 协议列表(二维数组 - 可读写)
 
     Class firstSubclass;
     Class nextSiblingClass;
@@ -952,7 +955,7 @@ private:
     }
 
 public:
-
+    // 通过objc_class 中的bits & FAST_DATA_MASK 获取到class_rw_t类型的data
     class_rw_t* data() {
         return (class_rw_t *)(bits & FAST_DATA_MASK);
     }
@@ -1141,11 +1144,13 @@ public:
     }
 };
 
-
+// Class 的结构本质
 struct objc_class : objc_object {
     // Class ISA;
     Class superclass;
+    // 方法缓存
     cache_t cache;             // formerly cache pointer and vtable
+    // 用于获取具体的类信息 -- 利用 &FAST_DATA_MASK 用于获取具体的类信息
     class_data_bits_t bits;    // class_rw_t * plus custom rr/alloc flags
 
     class_rw_t *data() { 

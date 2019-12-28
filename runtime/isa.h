@@ -53,7 +53,7 @@
     // uintptr_t fast_rr : 1;     // no r/r overrides
     // uintptr_t lock : 2;        // lock for atomic property, @synch
     // uintptr_t extraBytes : 1;  // allocated with extra bytes
-
+// 注释: 这里是优化后的 isa 指针的结构定义 arm64 后，通过位域方式存储isa 的等信息
 # if __arm64__
 #   define ISA_MASK        0x0000000ffffffff8ULL
 #   define ISA_MAGIC_MASK  0x000003f000000001ULL

@@ -2708,6 +2708,7 @@ void _read_images(header_info **hList, uint32_t hCount, int totalClasses, int un
     // Realize newly-resolved future classes, in case CF manipulates them
     if (resolvedFutureClasses) {
         for (i = 0; i < resolvedFutureClassCount; i++) {
+            // 重新规划类信息 - 有将class_ro_t的信息(methodList/protocols等)复制到clsaa_rw_t中
             realizeClass(resolvedFutureClasses[i]);
             resolvedFutureClasses[i]->setInstancesRequireRawIsa(false/*inherited*/);
         }

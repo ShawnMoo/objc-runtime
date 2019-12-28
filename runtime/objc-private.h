@@ -57,7 +57,7 @@ namespace {
 };
 
 #include "isa.h"
-
+// 优化后的isa 指针是共同体，
 union isa_t {
     isa_t() { }
     isa_t(uintptr_t value) : bits(value) { }
@@ -74,6 +74,7 @@ union isa_t {
 
 struct objc_object {
 private:
+    //  arm64 架构以后。isa指针不再是简简单单的 Class isa，而是isa_t isa ,优化了存储，使用共用体 union 结构，运用位域来存储
     isa_t isa;
 
 public:
