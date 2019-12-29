@@ -488,6 +488,7 @@ void cache_t::reallocate(mask_t oldCapacity, mask_t newCapacity)
     setBucketsAndMask(newBuckets, newCapacity - 1);
     
     if (freeOld) {
+        // 一旦散列表扩容就将缓存清除
         cache_collect_free(oldBuckets, oldCapacity);
         cache_collect(false);
     }
@@ -540,12 +541,13 @@ bucket_t * cache_t::find(cache_key_t k, id receiver)
     cache_t::bad_cache(receiver, (SEL)k, cls);
 }
 
-
+// 散列表扩容
 void cache_t::expand()
 {
     cacheUpdateLock.assertLocked();
     
     uint32_t oldCapacity = capacity();
+    // 将散列表的容量扩大为原来的两倍
     uint32_t newCapacity = oldCapacity ? oldCapacity*2 : INIT_CACHE_SIZE;
 
     if ((uint32_t)(mask_t)newCapacity != newCapacity) {

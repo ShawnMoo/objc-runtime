@@ -42,8 +42,8 @@ private:
     MethodCacheIMP _imp;
     cache_key_t _key;
 #else
-    cache_key_t _key;
-    MethodCacheIMP _imp;
+    cache_key_t _key; // SEL 作为key
+    MethodCacheIMP _imp;// 函数的内存地址
 #endif
 
 public:
@@ -55,11 +55,11 @@ public:
     void set(cache_key_t newKey, IMP newImp);
 };
 
-
+// 方法缓存
 struct cache_t {
-    struct bucket_t *_buckets;
-    mask_t _mask;
-    mask_t _occupied;
+    struct bucket_t *_buckets;// 散列表
+    mask_t _mask; // （散列表的长度 -1） ,在缓存方法的时间，用SEL & _mask = key 的index，作为在散列表中的存储索引，在取缓存的时间，也是直接通过& _mask 得到索引，通过索引index，直接从_buckets 中取出，这里的散列表是以牺牲空间换时间做法
+    mask_t _occupied;// 已经缓存的方法数量 -- 散列表的长度要大于或者等于已经缓存的方法数量
 
 public:
     struct bucket_t *buckets();
