@@ -4999,6 +4999,8 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
     
     // No implementation found. Try method resolver once.
 
+    // B: 动态方法解析
+    // 先判断是否进行过动态方法解析，如果没进行过动态方法解析则进行解析
     if (resolver  &&  !triedResolver) {
         runtimeLock.unlock();
         _class_resolveMethod(cls, sel, inst);
@@ -5006,8 +5008,10 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
         // Don't cache the result; we don't hold the lock so it may have 
         // changed already. Re-do the search from scratch instead.
         triedResolver = YES;
+        // 动态方法解析完成，会goto retry 重新进行消息的发送阶段 - 重走消息发送流程
         goto retry;
     }
+    // B: 动态方法解析结束
 
     // No implementation found, and method resolver didn't help. 
     // Use forwarding.
