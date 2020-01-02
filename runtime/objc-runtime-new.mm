@@ -4681,7 +4681,7 @@ class_setVersion(Class cls, int version)
     cls->data()->version = version;
 }
 
-
+// 二分查找 方法列表
 static method_t *findMethodInSortedMethodList(SEL key, const method_list_t *list)
 {
     assert(list);
@@ -4727,8 +4727,10 @@ static method_t *search_method_list(const method_list_t *mlist, SEL sel)
     int methodListHasExpectedSize = mlist->entsize() == sizeof(method_t);
     
     if (__builtin_expect(methodListIsFixedUp && methodListHasExpectedSize, 1)) {
+        // 如果是已经排好序的方法列表则直接进行二分查找
         return findMethodInSortedMethodList(sel, mlist);
     } else {
+        // 没有排好序的则进行遍历，进行线性查找
         // Linear search of unsorted method list
         for (auto& meth : *mlist) {
             if (meth.name == sel) return &meth;
@@ -4758,6 +4760,7 @@ getMethodNoSuper_nolock(Class cls, SEL sel)
     // fixme nil cls? 
     // fixme nil sel?
 
+    // cls->data() - 其实就是取出 Class 结构中的 class_rw_t 中的信息
     for (auto mlists = cls->data()->methods.beginLists(), 
               end = cls->data()->methods.endLists(); 
          mlists != end;
@@ -4862,8 +4865,10 @@ log_and_fill_cache(Class cls, IMP imp, SEL sel, id receiver, Class implementer)
 * This lookup avoids optimistic cache scan because the dispatcher 
 * already tried that.
 **********************************************************************/
+// 当方法缓存 caches 中没命中缓存后的C 语言的入口
 IMP _class_lookupMethodAndLoadCache3(id obj, SEL sel, Class cls)
 {
+    // 这里的 cache 传的是NO,表示不再查找缓存
     return lookUpImpOrForward(cls, sel, obj, 
                               YES/*initialize*/, NO/*cache*/, YES/*resolver*/);
 }
@@ -4925,25 +4930,31 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
     
  retry:    
     runtimeLock.assertLocked();
-
+    
+    // A: 消息发送阶段开始
+// 1. 会再次查找一次方法缓存，主要是防止在这之前 有动态添加缓存方法
     // Try this class's cache.
-
     imp = cache_getImp(cls, sel);
+    // 如果找到缓存方法则直接返回 IMP地址
     if (imp) goto done;
 
+    // 2.在自己的方法列表中查找方法
     // Try this class's method lists.
     {
         Method meth = getMethodNoSuper_nolock(cls, sel);
         if (meth) {
+            // 2.1 如果找到方法，则先填充缓存，将找到的方法加到缓存中去，
             log_and_fill_cache(cls, meth->imp, sel, inst, cls);
             imp = meth->imp;
             goto done;
         }
     }
 
+    // 3. 走到这说明在自己的方法列表中也没有找到相应的方法
     // Try superclass caches and method lists.
     {
         unsigned attempts = unreasonableClassCount();
+        // 循环各级父类，在各级父类的方法列表中查找相应的方法
         for (Class curClass = cls->superclass;
              curClass != nil;
              curClass = curClass->superclass)
@@ -4954,9 +4965,11 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
             }
             
             // Superclass cache.
+            // 3.1 在父类的方法缓存中查找
             imp = cache_getImp(curClass, sel);
             if (imp) {
                 if (imp != (IMP)_objc_msgForward_impcache) {
+                    // 3.2找到相应的方法，会将在父类中找到的方法，缓存到消息接收者所属类的方法缓存中去
                     // Found the method in a superclass. Cache it in this class.
                     log_and_fill_cache(cls, imp, sel, inst, curClass);
                     goto done;
@@ -4970,15 +4983,20 @@ IMP lookUpImpOrForward(Class cls, SEL sel, id inst,
             }
             
             // Superclass method list.
+            // 3.3 如果在父类的缓存中没有命中相应的方法，则在父类的方法列表中进行查找
             Method meth = getMethodNoSuper_nolock(curClass, sel);
             if (meth) {
+                // 3.4 找到方法后，依然将方法添加到消息接收者的类对象的方法缓存列表中去
                 log_and_fill_cache(cls, meth->imp, sel, inst, curClass);
                 imp = meth->imp;
                 goto done;
             }
         }
     }
-
+    
+// A: 消息发送阶段结束
+    
+    
     // No implementation found. Try method resolver once.
 
     if (resolver  &&  !triedResolver) {

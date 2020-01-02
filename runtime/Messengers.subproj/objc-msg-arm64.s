@@ -210,6 +210,7 @@ LExit$0:
 .if $0 == GETIMP
 	cbz	p9, LGetImpMiss
 .elseif $0 == NORMAL
+// NORMAL
 	cbz	p9, __objc_msgSend_uncached
 .elseif $0 == LOOKUP
 	cbz	p9, __objc_msgLookup_uncached
@@ -229,7 +230,7 @@ LExit$0:
 .abort oops
 .endif
 .endmacro
-
+// CacheLookup 依然是个宏定义
 .macro CacheLookup
 	// p1 = SEL, p16 = isa
 	ldp	p10, p11, [x16, #CACHE]	// p10 = buckets, p11 = occupied|mask
@@ -262,9 +263,11 @@ LExit$0:
 	ldp	p17, p9, [x12]		// {imp, sel} = *bucket
 1:	cmp	p9, p1			// if (bucket->sel != _cmd)
 	b.ne	2f			//     scan more
+// 2.1查找到缓存的方法则直接调用 -- 缓存命中
 	CacheHit $0			// call or return imp
 	
 2:	// not hit: p12 = not-hit bucket
+// 2.2. 缓存没有命中， - CheckMiss
 	CheckMiss $0			// miss if bucket->sel == 0
 	cmp	p12, p10		// wrap if bucket == buckets
 	b.eq	3f
@@ -298,12 +301,13 @@ _objc_debug_taggedpointer_classes:
 _objc_debug_taggedpointer_ext_classes:
 	.fill 256, 8, 0
 #endif
-
+/// _objc_msgSend：的定义入口
 	ENTRY _objc_msgSend
 	UNWIND _objc_msgSend, NoFrame
-
+// p0: 消息接收者 receiver
 	cmp	p0, #0			// nil check and tagged pointer check
 #if SUPPORT_TAGGED_POINTERS
+// 1, 如果receiver等于0，则跳转到 LNilOrTagged  ->
 	b.le	LNilOrTagged		//  (MSB tagged pointer looks negative)
 #else
 	b.eq	LReturnZero
@@ -311,10 +315,12 @@ _objc_debug_taggedpointer_ext_classes:
 	ldr	p13, [x0]		// p13 = isa
 	GetClassFromIsa_p16 p13		// p16 = class
 LGetIsaDone:
+// 2. 如果receiver不为空，则查找方法缓存
 	CacheLookup NORMAL		// calls imp or objc_msgSend_uncached
 
 #if SUPPORT_TAGGED_POINTERS
 LNilOrTagged:
+// LNilOrTagged -> return 0
 	b.eq	LReturnZero		// nil check
 
 	// tagged
@@ -345,6 +351,7 @@ LReturnZero:
 	movi	d3, #0
 	ret
 
+/// _objc_msgSend：的结束定义
 	END_ENTRY _objc_msgSend
 
 
@@ -434,7 +441,7 @@ LLookup_Nil:
 
 	END_ENTRY _objc_msgLookupSuper2
 
-
+// MethodTableLookup -- 定义
 .macro MethodTableLookup
 	
 	// push frame
@@ -456,6 +463,7 @@ LLookup_Nil:
 
 	// receiver and selector already in x0 and x1
 	mov	x2, x16
+// 3.1 此处的定义只有定义没有多余的调用 --> 应该查找C语言的 _class_lookupMethodAndLoadCache3比汇编语言少一个_
 	bl	__class_lookupMethodAndLoadCache3
 
 	// IMP in x0
@@ -477,13 +485,13 @@ LLookup_Nil:
 	AuthenticateLR
 
 .endmacro
-
+// __objc_msgSend_uncached 入口
 	STATIC_ENTRY __objc_msgSend_uncached
 	UNWIND __objc_msgSend_uncached, FrameWithNoSaves
 
 	// THIS IS NOT A CALLABLE C FUNCTION
 	// Out-of-band p16 is the class to search
-	
+	// 3 方法表格查找
 	MethodTableLookup
 	TailCallFunctionPointer x17
 
