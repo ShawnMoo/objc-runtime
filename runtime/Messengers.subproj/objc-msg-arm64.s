@@ -533,14 +533,16 @@ LGetImpMiss:
 *
 ********************************************************************/
 
+// 在汇编里实现_objc_msgForward_impcache
 	STATIC_ENTRY __objc_msgForward_impcache
 
 	// No stret specialization.
+// 调用 __objc_msgForward  -- 消息转发
 	b	__objc_msgForward
 
 	END_ENTRY __objc_msgForward_impcache
 
-	
+	// __objc_msgForward ->
 	ENTRY __objc_msgForward
 
 	adrp	x17, __objc_forward_handler@PAGE
