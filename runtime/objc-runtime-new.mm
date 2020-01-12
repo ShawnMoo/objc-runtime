@@ -3090,7 +3090,7 @@ void method_exchangeImplementations(Method m1, Method m2)
     // RR/AWZ updates are slow because class is unknown
     // Cache updates are slow because class is unknown
     // fixme build list of classes whose Methods are known externally?
-
+// 每当进行方法交换的时候  都会先清空方法缓存
     flushCaches(nil);
 
     updateCustomRR_AWZ(nil, m1);
