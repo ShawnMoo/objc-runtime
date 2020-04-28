@@ -1146,6 +1146,7 @@ public:
 
 // Class 的结构本质
 struct objc_class : objc_object {
+    // 这样可以看到class 里其实就只有四个成员(isa, superclass, cache, bits)
     // Class ISA;
     Class superclass;
     // 方法缓存
@@ -1172,7 +1173,7 @@ struct objc_class : objc_object {
 
     // set and clear must not overlap
     void changeInfo(uint32_t set, uint32_t clear) {
-        assert(isFuture()  ||  isRealized());
+        assert(isFuture ()  ||  isRealized());
         assert((set & clear) == 0);
         data()->changeFlags(set, clear);
     }
