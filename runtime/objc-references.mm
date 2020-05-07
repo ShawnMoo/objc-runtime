@@ -275,6 +275,7 @@ struct ReleaseValue {
     }
 };
 
+// AssociationsManager --> AssociationsHashMap<objc,ObjectAssociationMap>  ---> ObjectAssociationMap<key, ObjcAssociation> --> ObjcAssociation<policy,value>
 void _object_set_associative_reference(id object, void *key, id value, uintptr_t policy) {
     // retain the new value (if any) outside the lock.
     ObjcAssociation old_association(0, nil);
