@@ -2299,6 +2299,7 @@ void arr_init(void)
     return ULONG_MAX;
 }
 
+#pragma mark - 引用计数
 - (NSUInteger)retainCount {
     return ((id)self)->rootRetainCount();
 }
@@ -2324,8 +2325,7 @@ void arr_init(void)
 // Replaced by CF (throws an NSException)
 + (void)dealloc {
 }
-
-
+#pragma mark - 对象的释放
 // Replaced by NSZombies
 - (void)dealloc {
     _objc_rootDealloc(self);
