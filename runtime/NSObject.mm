@@ -91,6 +91,7 @@ enum HaveNew { DontHaveNew = false, DoHaveNew = true };
 
 struct SideTable {
     spinlock_t slock;
+    // 散列表
     RefcountMap refcnts;
     weak_table_t weak_table;
 

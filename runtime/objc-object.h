@@ -710,14 +710,15 @@ objc_object::rootAutorelease()
 inline uintptr_t 
 objc_object::rootRetainCount()
 {
+    // 判断是否是 taggedPointer类型的，如果是 taggedPointer 则直接返回
     if (isTaggedPointer()) return (uintptr_t)this;
 
     sidetable_lock();
     isa_t bits = LoadExclusive(&isa.bits);
     ClearExclusive(&isa.bits);
-    if (bits.nonpointer) {
+    if (bits.nonpointer) {// 优化过的isa
         uintptr_t rc = 1 + bits.extra_rc;
-        if (bits.has_sidetable_rc) {
+        if (bits.has_sidetable_rc) {// 说明引用计数不是存储在 isa中，而是存储在 sidetable中
             rc += sidetable_getExtraRC_nolock();
         }
         sidetable_unlock();
