@@ -934,11 +934,11 @@ class AutoreleasePoolPage
     static inline id *autoreleaseFast(id obj)
     {
         AutoreleasePoolPage *page = hotPage();
-        if (page && !page->full()) {
+        if (page && !page->full()) {// 已经存在 AutoreleasePoolPage并且没有存满
             return page->add(obj);
-        } else if (page) {
+        } else if (page) {// 已经存在，但是满了->
             return autoreleaseFullPage(obj, page);
-        } else {
+        } else {// 没有
             return autoreleaseNoPage(obj);
         }
     }
@@ -1013,8 +1013,11 @@ class AutoreleasePoolPage
     static __attribute__((noinline))
     id *autoreleaseNewPage(id obj)
     {
+        
         AutoreleasePoolPage *page = hotPage();
+        // 如没有hotPage，则新建一个
         if (page) return autoreleaseFullPage(obj, page);
+        // 新建一个AutoreleasePoolPage 并会标记为hotPahe (当前正在用的page)
         else return autoreleaseNoPage(obj);
     }
 
@@ -1032,8 +1035,8 @@ public:
     static inline void *push() 
     {
         id *dest;
+        // halt when autorelease pools are popped out of order, and allow heap debuggers to track autorelease pools
         if (DebugPoolAllocation) {
-            // Each autorelease pool starts on a new pool page.
             dest = autoreleaseNewPage(POOL_BOUNDARY);
         } else {
             dest = autoreleaseFast(POOL_BOUNDARY);
@@ -1839,12 +1842,13 @@ _objc_rootHash(id obj)
     return (uintptr_t)obj;
 }
 
+#pragma mark - AutoreleasePool AutoreleasePoolPage 相关
 void *
 objc_autoreleasePoolPush(void)
 {
     return AutoreleasePoolPage::push();
 }
-
+#pragma mark - AutoreleasePool objc_autoreleasePoolPop 相关
 void
 objc_autoreleasePoolPop(void *ctxt)
 {
